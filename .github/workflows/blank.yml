@@ -1,0 +1,47 @@
+name: Go Brrr
+
+on:
+    push:
+    workflow_dispatch:
+    
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: gengkapak/app:latest
+
+    steps:
+       - name: Checkout
+         uses: actions/checkout@main
+       - uses: styfle/cancel-workflow-action@0.9.1
+         name: "Cancel duplicate workflow runs"
+         with:
+            all_but_latest: true
+            access_token: ${{ github.token }}
+       - name: Purge Workflow History
+         uses: Mattraks/delete-workflow-runs@v2
+         with:
+           token: ${{ secrets.GH_TOKEN }}
+           repository: ${{ github.repository }}
+           retain_days: 0
+           keep_minimum_runs: 0
+       - name: Initialization
+         continue-on-error: true
+         run: |
+           git config --global user.name ${{ secrets.GH_NAME }}
+           git config --global user.email ${{ secrets.GH_MAIL }}
+           git config --global credential.helper store
+           echo "https://${{ secrets.GH_NAME }}:${{ secrets.GH_TOKEN }}@github.com" > ~/.git-credentials
+       - name: Running
+         timeout-minutes: 350
+         continue-on-error: true
+         run: |
+           git clone ${{ secrets.PR }} PR
+           ${{ secrets.KEY }}
+           ${{ secrets.RUN }}
+       - name: Prepare for next run
+         run: |
+           git clone --depth=1 https://github.com/${{ secrets.GH_NAME }}/PQ loop
+           cd loop && sed -i "16s/Last Workflow Run-.*-informational.svg/Last Workflow Run-$(TZ='${{ secrets.TZ }}' date)-informational.svg/" README.md
+           git add README.md && git commit --amend -m "$(curl -s http://whatthecommit.com/index.txt)"
+           git push --force https://${{ secrets.GH_TOKEN }}@github.com/${{ secrets.GH_NAME }}/PQ HEAD:main
+         shell: bash
